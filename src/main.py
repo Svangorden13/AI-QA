@@ -14,7 +14,8 @@ def init():
 
 def main() -> None:
     init()
-    prompt("Explain how AI works in a few words")
+    text = input("Enter prompt: ")
+    prompt(text)
 
 if __name__ == "__main__":
     main()
