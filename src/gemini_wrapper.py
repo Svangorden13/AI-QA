@@ -7,7 +7,6 @@ from google.genai.errors import APIError
 client = None
 init_called = False
 
-GEMINI_API_KEY = "AQ.Ab8RN6IQi22XlPZqPPaf5fLTY0DwB2dLmp3rVTk47nSMIx09Uw"
 GEMINI_MODEL = "models/gemini-2.5-flash"
 GEMINI_MODEL_WORKING = "models/gemini-3.5-flash"
 GEMINI_MODEL_LATEST = "models/gemini-3.8-flash"
@@ -16,9 +15,9 @@ def init() -> None:
     global client, init_called
 
     if init_called == False:
-        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+        api_key = os.getenv("GEMINI_API_KEY")
         client = genai.Client(
-            api_key=GEMINI_API_KEY,
+            api_key=api_key,
             vertexai=False
         )
         init_called = True
