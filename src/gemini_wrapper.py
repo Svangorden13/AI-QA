@@ -30,7 +30,7 @@ def prompt(text):
             chat = client.chats.create(model=GEMINI_MODEL_WORKING)
             response = chat.send_message(text)
             print(response.text)
-            return  # Success, exit the function!
+            return response
         except APIError as e:
             if e.code == 503 and attempt < 2:
                 time.sleep(2)  # Wait 2 seconds and try again
