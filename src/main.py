@@ -1,6 +1,7 @@
 import os
 import logging
 import structlog
+import prompt_builder
 from datetime import datetime
 from dotenv import load_dotenv
 from gemini_wrapper import prompt
@@ -33,16 +34,30 @@ def init():
         logger_factory=lambda: app_logger, 
     )
 
+    prompt_builder.create_user_prompts()
+
 def main() -> None:
     init()
     text = input("Enter prompt: ")
-    output = prompt(text)
+
+    if text == "":
+        system_prompt = prompt_builder.build_system_prompt()
+        user_prompt = prompt_builder.build_user_prompt()
+    elif text.isdigit():
+        system_prompt = prompt_builder.build_system_prompt()
+        user_prompt = prompt_builder.build_user_prompt(int(text))
+    else:
+        system_prompt = ""
+        user_prompt = text
+
+    output = prompt(system_prompt, user_prompt)
 
     if output != None:
         # Log prompt/response
         logger = structlog.get_logger()
         logger.info("prompt/response",
-                    prompt=text,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
                     response=output.text,
                     time=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
                     model=output.model_version,

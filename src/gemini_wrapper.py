@@ -1,7 +1,7 @@
 import os
 import time
 from google import genai
-from google.genai.types import HttpOptions
+from google.genai import types
 from google.genai.errors import APIError
 
 client = None
@@ -22,13 +22,18 @@ def init() -> None:
         )
         init_called = True
 
-def prompt(text):
+def prompt(system_prompt, user_prompt):
     init()
     # Try up to 3 times if the server returns a 503 overload error
     for attempt in range(3):
         try:
-            chat = client.chats.create(model=GEMINI_MODEL_WORKING)
-            response = chat.send_message(text)
+            chat = client.chats.create(
+                model=GEMINI_MODEL_WORKING,
+                config = types.GenerateContentConfig(
+                    system_instruction=system_prompt
+                )
+            )
+            response = chat.send_message(user_prompt)
             print(response.text)
             return response
         except APIError as e:
