@@ -1,4 +1,5 @@
 import numpy as np
+from openpyxl import load_workbook
 
 user_prompts = []
 
@@ -50,3 +51,23 @@ def create_user_prompts():
     add_user_prompt("Hi, my name is Maria Lopez, DOB 04/12/1986, and my SSN is 123-45-6789. I want to refill my blood pressure medication, how do I do that?") # Answerable
     add_user_prompt("whats ur hrs and do u take aetna and where do i park") # Answerable
     add_user_prompt("Can I get my lab results over the phone? I had blood work done last Tuesday.") # Ambiguous
+
+def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=60):
+    wb = load_workbook(file_name)
+    ws = wb["Test Set"]
+
+    tests = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        test_id, question = row[0], row[1]
+        if question:
+            tests.append({"id": test_id, "question": question})
+
+    print(f"Loaded {len(tests)} questions")
+
+    if n_prompt != -1:
+        tests = tests[:n_prompt]
+
+    for t in tests:
+        print(t["id"], t["question"][:max_char])
+
+    return [t["question"] for t in tests]

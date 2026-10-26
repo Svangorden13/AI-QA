@@ -5,6 +5,7 @@ import prompt_builder
 from datetime import datetime
 from dotenv import load_dotenv
 from gemini_wrapper import prompt
+from pathlib import Path
 
 def init():
     # Get path to .env and log files
@@ -38,30 +39,49 @@ def init():
 
 def main() -> None:
     init()
-    text = input("Enter prompt: ")
+    logger = structlog.get_logger()
+    text = input("Enter prompt or file: ")
 
     if text == "":
         system_prompt = prompt_builder.build_system_prompt()
-        user_prompt = prompt_builder.build_user_prompt()
+        user_prompts = prompt_builder.build_user_prompt()
     elif text.isdigit():
         system_prompt = prompt_builder.build_system_prompt()
-        user_prompt = prompt_builder.build_user_prompt(int(text))
+        user_prompts = prompt_builder.build_user_prompt(int(text))
+    elif Path(text).exists() and Path(text).is_file():
+        system_prompt = prompt_builder.build_system_prompt()
+        user_prompts = prompt_builder.from_file(text, n_prompt=2)
     else:
         system_prompt = ""
-        user_prompt = text
+        user_prompts = text
 
-    output = prompt(system_prompt, user_prompt)
+    try:
+        system_prompt = str(system_prompt)
+    except Exception as e:
+        logger.error("Error converting system prompt to string", error=str(e))
+        return
 
-    if output != None:
-        # Log prompt/response
-        logger = structlog.get_logger()
-        logger.info("prompt/response",
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    response=output.text,
-                    time=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-                    model=output.model_version,
-                    )
+    if isinstance(user_prompts, str):
+        user_prompts = [user_prompts]
+
+    for user_prompt in user_prompts:
+
+        try:
+            user_prompt = str(user_prompt)
+        except Exception as e:
+            logger.error("Error converting user prompt to string", error=str(e))
+            return
+
+        output = prompt(system_prompt, user_prompt)
+        if output != None:
+            # Log prompt/response
+            logger.info("prompt/response",
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        response=output.text,
+                        time=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                        model=output.model_version,
+                        )
 
 if __name__ == "__main__":
     main()
