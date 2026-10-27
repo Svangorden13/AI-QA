@@ -1,11 +1,13 @@
 import os
+import time
 import logging
 import structlog
 import prompt_builder
 from datetime import datetime
 from dotenv import load_dotenv
-from gemini_wrapper import prompt
 from pathlib import Path
+from gemini_wrapper import prompt
+from response_validator import validate_response
 
 def init():
     # Get path to .env and log files
@@ -40,6 +42,7 @@ def init():
 def main() -> None:
     init()
     logger = structlog.get_logger()
+    from_file = False
     text = input("Enter prompt or file: ")
 
     if text == "":
@@ -50,7 +53,8 @@ def main() -> None:
         user_prompts = prompt_builder.build_user_prompt(int(text))
     elif Path(text).exists() and Path(text).is_file():
         system_prompt = prompt_builder.build_system_prompt()
-        user_prompts = prompt_builder.from_file(text, n_prompt=2)
+        user_prompts = prompt_builder.from_file(text, n_prompt=1)
+        from_file = True
     else:
         system_prompt = ""
         user_prompts = text
@@ -74,6 +78,20 @@ def main() -> None:
 
         output = prompt(system_prompt, user_prompt)
         if output != None:
+            
+            # If from file, validate response:
+            if from_file:
+                is_valid = validate_response(user_prompt, output.text, text, system_prompt)
+                if not is_valid:
+                    logger.error("Response validation failed", 
+                                 system_prompt=system_prompt,
+                                 user_prompt=user_prompt,
+                                 response=output.text,
+                                 time=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                                 model=output.model_version,
+                                 )
+                    continue
+
             # Log prompt/response
             logger.info("prompt/response",
                         system_prompt=system_prompt,
@@ -82,6 +100,8 @@ def main() -> None:
                         time=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
                         model=output.model_version,
                         )
+
+        time.sleep(2)  # Sleep for 2 seconds to avoid rate limiting
 
 if __name__ == "__main__":
     main()
