@@ -52,8 +52,9 @@ def main() -> None:
         system_prompt = prompt_builder.build_system_prompt()
         user_prompts = prompt_builder.build_user_prompt(int(text))
     elif Path(text).exists() and Path(text).is_file():
+        n_prompt = int(input("Enter number of prompts to use (default -1 for all): ") or -1)
         system_prompt = prompt_builder.build_system_prompt()
-        user_prompts = prompt_builder.from_file(text, n_prompt=1)
+        user_prompts = prompt_builder.from_file(text, n_prompt=n_prompt)
         from_file = True
     else:
         system_prompt = ""

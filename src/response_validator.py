@@ -9,7 +9,9 @@ def validate_response(user_prompt: str, response: str, file_name: str, system_pr
     All comma-separated terms in the "Response must include" column must be present in the response.
     All comma-separated terms in the "Response must exclude" column must not be present in the response.
     Terms in the "Response must include" and "Response must exclude" columns can be prefixed with "<" and suffixed with ">" to indicate that they are placeholders for python variables. In this case, the variable will be substituted for the placeholder before checking for inclusion or exclusion.
-    Terms in the "Response must include" and "Response must exclude" columns can be separated by "/" to indicate that they are alternative terms. In this case, at least one of the alternative terms must be present in the response for inclusion, and the alternative terms must not all be present in the response for exclusion.
+    Terms in the "Response must include" columns can be separated by "||" to indicate that they are alternative terms. In this case, at least one of the alternative terms must be present in the response for inclusion.
+    Terms in the "Response must exclude" columns can be separated by "&&" to indicate that they are alternative terms. In this case, the alternative terms may not all be present in the response for exclusion.
+    Terms surrounded by "/" and "/" are treated as regex patterns and will be matched against the response using regex search.
 
     Args:
         user_prompt (str): The user prompt used for validation.
@@ -23,8 +25,13 @@ def validate_response(user_prompt: str, response: str, file_name: str, system_pr
     include = df.loc[df['User prompt'] == user_prompt, 'Response must include'].values[0]
     exclude = df.loc[df['User prompt'] == user_prompt, 'Response must exclude'].values[0]
 
-    include = include.split(',') if include else []
-    exclude = exclude.split(',') if exclude else []
+    try:
+        # Try to convert inclusion/exclusion fields to strings if they exist and are not NaN, then split them into lists by commas
+        include = str(include).split(',') if include and include == include else []
+        exclude = str(exclude).split(',') if exclude and exclude == exclude else []
+    except Exception as e:
+        print(f"Error: could not convert inclusion/exclusion fields to lists {e}")
+        raise Exception(f"Error: could not convert inclusion/exclusion fields to lists: {e}")
 
     for inc in include:
         inc = inc.strip().split("||")
@@ -56,7 +63,7 @@ def validate_response(user_prompt: str, response: str, file_name: str, system_pr
             return False
 
     for exc in exclude:
-        exc = exc.strip().split("||")
+        exc = exc.strip().split("&&")
         found = True
         
         for e in exc:
@@ -71,7 +78,7 @@ def validate_response(user_prompt: str, response: str, file_name: str, system_pr
                     found = False
                     break
                 else:
-                    print(f"{pattern} not in {response}")
+                    print(f"{pattern} in {response}")
             else:
                 if e.strip().lower() not in response.lower():
                     found = False

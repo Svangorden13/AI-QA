@@ -54,7 +54,7 @@ def create_user_prompts():
 
 def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=60):
     wb = load_workbook(file_name)
-    ws = wb["Test Set"]
+    ws = wb[sheet_name]
 
     tests = []
     for row in ws.iter_rows(min_row=2, values_only=True):

@@ -24,7 +24,7 @@ def init() -> None:
 
 def prompt(system_prompt, user_prompt):
     init()
-    # Try up to 3 times if the server returns a 503 overload error
+    # Try up to 3 times if the server returns a 429 or 503 error
     for attempt in range(3):
         try:
             chat = client.chats.create(
@@ -34,11 +34,17 @@ def prompt(system_prompt, user_prompt):
                 )
             )
             response = chat.send_message(user_prompt)
-            print(response.text)
+            time.sleep(15) # Wait 15 seconds to avoid rate limiting
             return response
         except APIError as e:
-            if e.code == 503 and attempt < 2:
-                time.sleep(2)  # Wait 2 seconds and try again
+            if e.code in (429, 503) and attempt < 2:
+                wait = 60 if e.code == 429 else 2 # Wait full minute for 429 errors as it may be a per-minute rate limit
+                print(f"Error {e.code}, waiting {wait}s then retrying...")
+                time.sleep(wait)
                 continue
             print(f"API Error: {e}")
             break
+
+    # If we reach here, all attempts failed
+    print("All attempts failed. Please check your API key and network connection.")
+    return ""
