@@ -77,7 +77,7 @@ def main() -> None:
             logger.error("Error converting user prompt to string", error=str(e))
             return
 
-        output = prompt(system_prompt, user_prompt)
+        output = prompt(user_prompt, system_prompt)
         if output != None:
             
             # If from file, validate response:

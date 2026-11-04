@@ -22,16 +22,23 @@ def init() -> None:
         )
         init_called = True
 
-def prompt(system_prompt, user_prompt):
+def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_WORKING, temperature=None, response_mime_type=None) -> str:
     init()
     # Try up to 3 times if the server returns a 429 or 503 error
     for attempt in range(3):
         try:
+            config_args = {
+                "system_instruction": system_prompt,
+            }
+
+            if temperature is not None:
+                config_args["temperature"] = temperature
+            if response_mime_type is not None:
+                config_args["response_mime_type"] = response_mime_type
+
             chat = client.chats.create(
-                model=GEMINI_MODEL_WORKING,
-                config = types.GenerateContentConfig(
-                    system_instruction=system_prompt
-                )
+                model=model,
+                config = types.GenerateContentConfig(**config_args)
             )
             response = chat.send_message(user_prompt)
             time.sleep(15) # Wait 15 seconds to avoid rate limiting
