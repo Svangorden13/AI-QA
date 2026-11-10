@@ -7,7 +7,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from pathlib import Path
 from gemini_wrapper import prompt
-from response_validator import validate_response
+from validation.response_validator import validate_response
 
 def init():
     # Get path to .env and log files
@@ -52,7 +52,7 @@ def main() -> None:
         system_prompt = prompt_builder.build_system_prompt()
         user_prompts = prompt_builder.build_user_prompt(int(text))
     elif Path(text).exists() and Path(text).is_file():
-        n_prompt = int(input("Enter number of prompts to use (default -1 for all): ") or -1)
+        n_prompt = input("Enter number of prompts to use (default -1 for all) or prompt range (0 indexed): ") or -1
         system_prompt = prompt_builder.build_system_prompt()
         user_prompts = prompt_builder.from_file(text, n_prompt=n_prompt)
         from_file = True

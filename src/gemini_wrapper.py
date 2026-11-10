@@ -22,7 +22,7 @@ def init() -> None:
         )
         init_called = True
 
-def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_WORKING, temperature=None, response_mime_type=None) -> str:
+def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_WORKING, temperature=None, response_mime_type=None, addl_config_args=None) -> str:
     init()
     # Try up to 3 times if the server returns a 429 or 503 error
     for attempt in range(3):
@@ -36,6 +36,10 @@ def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_WORKING, temperatur
             if response_mime_type is not None:
                 config_args["response_mime_type"] = response_mime_type
 
+            if addl_config_args:
+                for key, value in addl_config_args.items():
+                    config_args[key] = value
+
             chat = client.chats.create(
                 model=model,
                 config = types.GenerateContentConfig(**config_args)
@@ -44,7 +48,7 @@ def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_WORKING, temperatur
             time.sleep(15) # Wait 15 seconds to avoid rate limiting
             return response
         except APIError as e:
-            if e.code in (429, 503) and attempt < 2:
+            if e.code == 503 and attempt < 10 or e.code == 429 and attempt < 2:
                 wait = 60 if e.code == 429 else 2 # Wait full minute for 429 errors as it may be a per-minute rate limit
                 print(f"Error {e.code}, waiting {wait}s then retrying...")
                 time.sleep(wait)

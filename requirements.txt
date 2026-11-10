@@ -4,7 +4,7 @@ ConfigParser==7.2.0
 cryptography==50.0.2
 docutils==0.23
 filelock==4.1.0
-google-genai==2.32.0
+google-genai==3.0.0
 h2==4.4.1
 HTMLParser==0.0.2
 ipython==8.12.3

@@ -52,7 +52,7 @@ def create_user_prompts():
     add_user_prompt("whats ur hrs and do u take aetna and where do i park") # Answerable
     add_user_prompt("Can I get my lab results over the phone? I had blood work done last Tuesday.") # Ambiguous
 
-def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=60):
+def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=1000):
     wb = load_workbook(file_name)
     ws = wb[sheet_name]
 
@@ -64,8 +64,16 @@ def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=60):
 
     print(f"Loaded {len(tests)} questions")
 
-    if n_prompt != -1:
-        tests = tests[:n_prompt]
+    try:
+        n_prompt = int(n_prompt)
+        if n_prompt != -1:
+            tests = tests[:n_prompt]
+    except ValueError:
+        if '-' in str(n_prompt):
+            start, end = map(int, n_prompt.split('-'))
+            tests = tests[start:end + 1]
+        else:
+            raise ValueError(f"Invalid n_prompt value: {n_prompt}")
 
     for t in tests:
         print(t["id"], t["question"][:max_char])
