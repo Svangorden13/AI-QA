@@ -17,9 +17,9 @@ from google.genai import types
 from google.genai.errors import APIError
 from pydantic import BaseModel
 
-from gemini_wrapper import prompt
+from llm_wrappers.gemini_wrapper import prompt
 
-JUDGE_MODEL = "models/gemini-3.8-flash"
+JUDGE_MODEL = "models/gemini-3.5-flash-lite"
 
 JUDGE_INSTRUCTIONS = """You are a strict but fair QA judge for a customer-support chatbot.
 You will receive a RUBRIC describing what a correct response must do, the USER MESSAGE the chatbot
@@ -79,7 +79,7 @@ def judge_response(user_prompt: str, response: str, file_name: str, system_promp
             response_mime_type="application/json",
             addl_config_args=config,
         )
-        data = json.loads(result.text)
+        data = json.loads(result["text"])
         if data.get("verdict") not in ("PASS", "FAIL"):
             raise ValueError(f"Unexpected verdict: {data!r}")
         return {"passed": data["verdict"] == "PASS", "reason": data.get("reason", "")}

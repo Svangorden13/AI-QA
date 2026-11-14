@@ -2,7 +2,7 @@ import os
 import re
 import json
 import pandas as pd
-from gemini_wrapper import prompt
+from llm_wrappers.gemini_wrapper import prompt
 
 def generate_test_case_prompts(source_text: str, save_file: str = None) -> list:
     """
@@ -45,10 +45,10 @@ Return ONLY the raw JSON list with no markdown or extra commentary.
     response = prompt(pass1_prompt, temperature=0.2, response_mime_type="application/json")
 
     try:
-        test_cases = parse_llm_json(response.text)
+        test_cases = parse_llm_json(response["text"])
     except json.JSONDecodeError as e:
         print("Pass 1 Error: Failed to parse JSON. Raw output:")
-        print(response.text)
+        print(response["text"])
         raise e
 
     # Save to file for inspection and reuse in Pass 2
@@ -130,10 +130,10 @@ Return ONLY the raw JSON list with no markdown or extra commentary.
     response = prompt(pass2_prompt, temperature=0.2, response_mime_type="application/json")
 
     try:
-        rules_data = parse_llm_json(response.text)
+        rules_data = parse_llm_json(response["text"])
     except json.JSONDecodeError as e:
         print("Pass 2 Error: Failed to parse JSON. Raw output:")
-        print(response.text)
+        print(response["text"])
         raise e
 
     return rules_data

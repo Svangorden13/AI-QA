@@ -57,12 +57,26 @@ def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=1000):
     ws = wb[sheet_name]
 
     tests = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        test_id, question = row[0], row[1]
-        if question:
-            tests.append({"id": test_id, "question": question})
+    id_colnum = -1
+    prompt_colnum = -1
+    response_colnum = -1
 
-    print(f"Loaded {len(tests)} questions")
+    # Get column header locations
+    for cell in ws[1]:
+        if "id" in cell.value.lower():
+            id_colnum = cell.col_idx - 1 # Subtract 1 because iter_rows is 0-based
+        if "prompt" in cell.value.lower() or "question" in cell.value.lower():
+            prompt_colnum = cell.col_idx - 1 # Subtract 1 because iter_rows is 0-based
+        if "response" in cell.value.lower() and "observed" in cell.value.lower():
+            response_colnum = cell.col_idx - 1 # Subtract 1 because iter_rows is 0-based
+
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        test_id, prompt, response = row[id_colnum], row[prompt_colnum], row[response_colnum]
+        if prompt_colnum != -1:
+            if response_colnum != -1:
+                tests.append({"id": test_id, "prompt": prompt, "response":response})
+            else:
+                tests.append({"id": test_id, "prompt": prompt, "response":""})
 
     try:
         n_prompt = int(n_prompt)
@@ -74,8 +88,5 @@ def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=1000):
             tests = tests[start:end + 1]
         else:
             raise ValueError(f"Invalid n_prompt value: {n_prompt}")
-
-    for t in tests:
-        print(t["id"], t["question"][:max_char])
-
-    return [t["question"] for t in tests]
+    
+    return zip(*[(t["id"], t["prompt"], t["response"]) for t in tests])

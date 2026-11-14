@@ -12,6 +12,7 @@ ipywidgets==8.1.9
 js==1.0
 keyring==25.7.0
 numpy==2.5.4
+openai==3.49.0
 openpyxl==3.1.5
 pandas==3.1.1
 protobuf==7.36.2
