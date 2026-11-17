@@ -4,6 +4,8 @@ import json
 import pandas as pd
 from llm_wrappers.gemini_wrapper import prompt
 
+NUM_TEST_CASES = "15-20"  # Number of test cases to generate in Pass 1
+
 def generate_test_case_prompts(source_text: str, save_file: str = None) -> list:
     """
     Pass 1: Brainstorms test scenarios, user prompts, rubrics, and risk categories.
@@ -18,7 +20,7 @@ Below is a company's raw knowledge base / FAQ documentation:
 {source_text}
 ------------------
 
-Your task is to generate a rigorous suite of 15-20 test cases to evaluate a customer support chatbot built on this knowledge base.
+Your task is to generate a rigorous suite of {NUM_TEST_CASES} test cases to evaluate a customer support chatbot built on this knowledge base.
 
 Focus deeply on brainstorming creative, high-quality test cases across diverse failure modes:
 1. Direct answerable questions (testing factual recall).
@@ -60,7 +62,7 @@ Return ONLY the raw JSON list with no markdown or extra commentary.
     return test_cases
 
 
-def generate_validation_rules(source_text: str, test_cases: list) -> list:
+def generate_validation_rules(source_text: str, test_cases: list, save_file: str) -> list:
     """
     Pass 2: Generates precise inclusion and exclusion validation rules for each test case.
     """
@@ -136,6 +138,12 @@ Return ONLY the raw JSON list with no markdown or extra commentary.
         print(response["text"])
         raise e
 
+    # Save to file for inspection and reuse in future runs
+    if save_file:
+        with open(save_file, "w", encoding="utf-8") as f:
+            json.dump(rules_data, f, indent=2, ensure_ascii=False)
+
+    print(f"Pass 2 complete. Generated {len(rules_data)} validation rules.")
     return rules_data
 
 def parse_llm_json(raw_text: str) -> list:
@@ -199,7 +207,7 @@ def generate_client_test_set(source_docs_path: str, output_excel_path: str, pass
         print("Generated new test_cases from source docs")
 
     # Step 2: Run Pass 2
-    rules_data = generate_validation_rules(source_text, test_cases)
+    rules_data = generate_validation_rules(source_text, test_cases, pass2_path)
 
     # Step 3: Merge rules back into test cases
     rules_map = {item["ID"]: item for item in rules_data}
@@ -246,8 +254,9 @@ if __name__ == "__main__":
     docs = r"..\clients\test\source_docs.txt"
     output = r"..\clients\test\client_test_set.xlsx"
     pass1 = r"..\clients\test\pass1_test_cases.json"
+    pass2 = r"..\clients\test\pass2_validation_rules.json"
     
     if os.path.exists(docs):
-        generate_client_test_set(docs, output, pass1_path=pass1)
+        generate_client_test_set(docs, output, pass1_path=pass1, pass2_path=pass2)
     else:
         print(f"Please place a text file at {docs} containing the client's knowledge base to test the generator.")

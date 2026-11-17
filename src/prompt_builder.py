@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from openpyxl import load_workbook
 
@@ -63,7 +64,7 @@ def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=1000):
 
     # Get column header locations
     for cell in ws[1]:
-        if "id" in cell.value.lower():
+        if "id" == cell.value.lower():
             id_colnum = cell.col_idx - 1 # Subtract 1 because iter_rows is 0-based
         if "prompt" in cell.value.lower() or "question" in cell.value.lower():
             prompt_colnum = cell.col_idx - 1 # Subtract 1 because iter_rows is 0-based
@@ -83,7 +84,10 @@ def from_file(file_name, n_prompt=-1, sheet_name="Test Set", max_char=1000):
         if n_prompt != -1:
             tests = tests[:n_prompt]
     except ValueError:
-        if '-' in str(n_prompt):
+        if 'rand' in str(n_prompt).lower():
+            count = int(re.search(r'\d+', str(n_prompt)).group())
+            tests = np.random.choice(tests, size=count, replace=False)
+        elif '-' in str(n_prompt):
             start, end = map(int, n_prompt.split('-'))
             tests = tests[start:end + 1]
         else:

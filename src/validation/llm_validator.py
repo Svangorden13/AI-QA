@@ -97,3 +97,16 @@ def validate_response(user_prompt: str, response: str, file_name: str, system_pr
     if not result["passed"]:
         print(f"FAIL ({user_prompt[:50]!r}): {result['reason']}")
     return result["passed"]
+
+def agreement_report(human, judge):
+    """human, judge: lists of "PASS"/"FAIL" in the same order."""
+    n = len(human)
+    tp = sum(h.upper() == j.upper() == "PASS" for h, j in zip(human, judge))
+    tn = sum(h.upper() == j.upper() == "FAIL" for h, j in zip(human, judge))
+    fp = sum(h.upper() == "FAIL" and j.upper() == "PASS" for h, j in zip(human, judge))  # judge let a bad answer through
+    fn = sum(h.upper() == "PASS" and j.upper() == "FAIL" for h, j in zip(human, judge))  # judge failed a good answer
+    po = (tp + tn) / n
+    pe = ((tp + fn) * (tp + fp) + (tn + fp) * (tn + fn)) / n**2
+    kappa = (po - pe) / (1 - pe) if pe < 1 else 1.0
+    print(f"n={n}  agreement={po:.0%}  kappa={kappa:.2f}")
+    print(f"bad answers wrongly passed: {fp} of {fp + tn}   good answers wrongly failed: {fn} of {fn + tp}")

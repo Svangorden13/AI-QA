@@ -56,7 +56,7 @@ def main() -> None:
     elif Path(text).exists() and Path(text).is_file():
         n_prompt = input("Enter number of prompts to use (default -1 for all) or prompt range (0 indexed): ") or -1
         use_responses_in_file = True if input("Use model responses from file (y/n)? ").lower() == "y" else False
-        update_file_with_response = True if use_responses_in_file == False and input("Update file with responses (y/n)? ").lower() == "y" else False
+        update_file_with_response = True if input("Update file with responses (y/n)? ").lower() == "y" else False
         system_prompt = prompt_builder.build_system_prompt()
         ids, user_prompts, responses = prompt_builder.from_file(text, n_prompt=n_prompt)
         from_file = True
@@ -96,6 +96,13 @@ def main() -> None:
             # If from file, validate response:
             if from_file:
                 is_valid = validate_response(user_prompt, response, text, system_prompt)
+
+                if update_file_with_response:
+                    try:
+                        write_response_to_file(id, response, is_valid, text)
+                    except KeyError:
+                        print("Continuing with next id")
+
                 if not is_valid:
                     logger.error("Response validation failed", 
                                  system_prompt=system_prompt,
@@ -105,12 +112,6 @@ def main() -> None:
                                  model=model,
                                  )
                     continue
-
-                if update_file_with_response:
-                    try:
-                        write_response_to_file(id, response, text)
-                    except KeyError:
-                        print("Continuing with next id")
 
             # TODO: Implement validating response based on passing prompt and response to LLM
             else:
@@ -127,17 +128,20 @@ def main() -> None:
 
         time.sleep(2)  # Sleep for 2 seconds to avoid rate limiting
 
-def write_response_to_file(id, response, file_name, sheet_name="Test Set"):
+def write_response_to_file(id, response, is_valid, file_name, sheet_name="Test Set"):
     wb = load_workbook(file_name)
     ws = wb[sheet_name]
     id_colnum = -1
     response_colnum = -1
+    valid_colnum = -1
 
     for cell in ws[1]:
-        if "id" in cell.value.lower():
-            id_colnum = cell.col_idx # Subtract 1 because iter_rows is 0-based
+        if "id" == cell.value.lower():
+            id_colnum = cell.col_idx
         if "response" in cell.value.lower() and "observed" in cell.value.lower():
-            response_colnum = cell.col_idx # Subtract 1 because iter_rows is 0-based
+            response_colnum = cell.col_idx
+        if "response" in cell.value.lower() and "valid" in cell.value.lower():
+            valid_colnum = cell.col_idx
 
     if id_colnum == -1:
         raise KeyError(f"Could not save response with ID {id} to file because no ID column found")
@@ -146,9 +150,14 @@ def write_response_to_file(id, response, file_name, sheet_name="Test Set"):
         response_colnum = ws.max_column + 1
         ws.cell(row=1, column=response_colnum, value="Observed Response")
 
+    if valid_colnum == -1:
+        valid_colnum = ws.max_column + 1
+        ws.cell(row=1, column=valid_colnum, value="Valid Response")
+
     for row in range(2, ws.max_row + 1):
         if str(ws.cell(row=row, column=id_colnum).value) == str(id):
             ws.cell(row=row, column=response_colnum, value=response)
+            ws.cell(row=row, column=valid_colnum, value="PASS" if is_valid else "FAIL")
             break
 
     wb.save(file_name)
