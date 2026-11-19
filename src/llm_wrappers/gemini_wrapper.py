@@ -13,7 +13,7 @@ GEMINI_MODEL_3_5_LITE = "models/gemini-3.5-flash-lite"
 GEMINI_MODEL_3_8 = "models/gemini-3.8-flash"
 GEMMA_MODEL_4 = "models/gemma-4-31b-it"
 
-def init() -> None:
+def init(model_timeout) -> None:
     global client, init_called
 
     if init_called == False:
@@ -21,12 +21,12 @@ def init() -> None:
         client = genai.Client(
             api_key=api_key,
             vertexai=False,
-            http_options=types.HttpOptions(timeout=60_000),
+            http_options=types.HttpOptions(timeout=model_timeout),
         )
         init_called = True
 
-def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_3_5_LITE, temperature=None, response_mime_type=None, addl_config_args=None) -> str:
-    init()
+def prompt(user_prompt, system_prompt="", model=GEMINI_MODEL_3_5_LITE, model_timeout=60_000, temperature=None, response_mime_type=None, addl_config_args=None) -> str:
+    init(model_timeout)
     # Try up to 3 times if the server returns a 429 or 503 error
     for attempt in range(11):
         try:

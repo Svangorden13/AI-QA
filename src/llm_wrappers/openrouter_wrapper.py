@@ -6,8 +6,9 @@ client = None
 init_called = False
 
 OPEN_ROUTER_FREE="openrouter/free"
+META_LLAMA_3_3_70B_INSTRUCT="meta-llama/llama-3.3-70b-instruct"
 
-def init() -> None:
+def init(timeout) -> None:
     global client, init_called
 
     if init_called == False:
@@ -15,11 +16,12 @@ def init() -> None:
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
+            timeout=timeout,
         )
         init_called = True
 
-def prompt(user_prompt, system_prompt="", model=OPEN_ROUTER_FREE, temperature=None, response_mime_type=None, addl_config_args=None) -> str:
-    init()
+def prompt(user_prompt, system_prompt="", model=OPEN_ROUTER_FREE, timeout=60.0,temperature=None, response_mime_type=None, addl_config_args=None) -> str:
+    init(timeout)
     # Try up to 3 times if the server returns a 429 or 503 error
     for attempt in range(11):
         try:

@@ -17,6 +17,7 @@ openpyxl==3.1.5
 pandas==3.1.1
 protobuf==7.36.2
 pyOpenSSL==26.4.0
+pytest==9.2.0
 python-dotenv==1.2.4
 redis==8.1.0
 Sphinx==9.2.0
