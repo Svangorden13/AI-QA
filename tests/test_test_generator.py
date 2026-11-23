@@ -2,7 +2,7 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(PROJECT_ROOT, "src")
@@ -28,29 +28,48 @@ class TestGeneratorTests(unittest.TestCase):
 
     def test_generate_test_case_prompts_calls_llm_and_saves_json(self):
         response = {"text": '[{"ID": 1, "User prompt": "Hours?", "Expected response (rubric)": "Call."}]'}
+        model = MagicMock()
+        model.prompt.return_value = response
+
         with tempfile.TemporaryDirectory() as directory:
             output = os.path.join(directory, "pass1.json")
-            with patch.object(test_generator, "gemini_prompt", return_value=response) as mocked:
-                cases = test_generator.generate_test_case_prompts("Clinic FAQ", output)
+            cases = test_generator.generate_test_case_prompts("Clinic FAQ", model, output)
 
-            mocked.assert_called_once()
+            model.prompt.assert_called_once()
+            call_args = model.prompt.call_args
+            self.assertIn("Clinic FAQ", call_args.args[0])
+            self.assertEqual(call_args.kwargs["temperature"], 0.2)
+            self.assertEqual(call_args.kwargs["response_mime_type"], "application/json")
             self.assertEqual(cases[0]["ID"], 1)
             self.assertTrue(os.path.exists(output))
 
     def test_generate_validation_rules_passes_cases_to_llm(self):
         response = {"text": '[{"ID": 1, "Response must include": "Monday", "Response must exclude": "", "Passing samples": ["Monday"], "Failing samples": ["Sunday"]}]'}
-        with patch.object(test_generator, "gemini_prompt", return_value=response) as mocked:
-            rules = test_generator.generate_validation_rules("Clinic FAQ", [{"ID": 1}], os.devnull)
+        model = MagicMock()
+        model.prompt.return_value = response
 
-        mocked.assert_called_once()
+        rules = test_generator.generate_validation_rules(
+            "Clinic FAQ",
+            [{"ID": 1}],
+            model,
+            os.devnull,
+        )
+
+        model.prompt.assert_called_once()
+        call_args = model.prompt.call_args
+        self.assertIn("Clinic FAQ", call_args.args[0])
+        self.assertIn('"ID": 1', call_args.args[0])
+        self.assertEqual(call_args.kwargs["temperature"], 0.2)
+        self.assertEqual(call_args.kwargs["response_mime_type"], "application/json")
         self.assertEqual(rules[0]["ID"], 1)
 
     def test_generate_client_test_set_requires_source_document(self):
         with tempfile.TemporaryDirectory() as directory:
             missing = os.path.join(directory, "missing.txt")
             output = os.path.join(directory, "output.xlsx")
+            model = MagicMock()
             with self.assertRaises(FileNotFoundError):
-                test_generator.generate_client_test_set(missing, output)
+                test_generator.generate_client_test_set(missing, output, model)
 
 
 if __name__ == "__main__":

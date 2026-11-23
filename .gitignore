@@ -4,3 +4,7 @@ __pycache__/
 .env
 logs/*
 !logs/.gitkeep
+*.xlsx
+*.docx
+clients/**/*.json
+sandbox.ipynb

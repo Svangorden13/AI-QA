@@ -2,11 +2,13 @@ import os
 import re
 import json
 import pandas as pd
-from llm_wrappers.gemini_wrapper import prompt
+
+from llm_wrappers.base_wrapper import BaseLLMWrapper
+from llm_wrappers.wrapper_factory import build_wrapper
 
 NUM_TEST_CASES = "15-20"  # Number of test cases to generate in Pass 1
 
-def generate_test_case_prompts(source_text: str, save_file: str = None) -> list:
+def generate_test_case_prompts(source_text: str, generating_model: BaseLLMWrapper, save_file: str = None) -> list:
     """
     Pass 1: Brainstorms test scenarios, user prompts, rubrics, and risk categories.
     """
@@ -44,7 +46,7 @@ Return your output as a valid JSON list of objects. Each object must contain exa
 Return ONLY the raw JSON list with no markdown or extra commentary.
 """
 
-    response = prompt(pass1_prompt, temperature=0.2, response_mime_type="application/json")
+    response = generating_model.prompt(pass1_prompt, temperature=0.2, response_mime_type="application/json")
 
     try:
         test_cases = parse_llm_json(response["text"])
@@ -62,7 +64,7 @@ Return ONLY the raw JSON list with no markdown or extra commentary.
     return test_cases
 
 
-def generate_validation_rules(source_text: str, test_cases: list, save_file: str) -> list:
+def generate_validation_rules(source_text: str, test_cases: list, generating_model: BaseLLMWrapper, save_file: str = None) -> list:
     """
     Pass 2: Generates precise inclusion and exclusion validation rules for each test case.
     """
@@ -129,7 +131,7 @@ Return a valid JSON list of objects corresponding exactly to the input test case
 Return ONLY the raw JSON list with no markdown or extra commentary.
 """
 
-    response = prompt(pass2_prompt, temperature=0.2, response_mime_type="application/json")
+    response = generating_model.prompt(pass2_prompt, temperature=0.2, response_mime_type="application/json")
 
     try:
         rules_data = parse_llm_json(response["text"])
@@ -187,7 +189,7 @@ def clean_regex_flags(rule_string: str) -> str:
     # Matches a closing slash followed by flags like i, g, m (e.g., /i, /gi)
     return re.sub(r'(/)([&|]?)\s*([igm]+)\b', r'\1\2', rule_string)
 
-def generate_client_test_set(source_docs_path: str, output_excel_path: str, pass1_path: str = None, pass2_path: str = None) -> None:
+def generate_client_test_set(source_docs_path: str, output_excel_path: str, generating_model: BaseLLMWrapper, pass1_path: str = None, pass2_path: str = None) -> None:
     """
     Orchestrates the multi-pass generation process and exports to an Excel spreadsheet.
     """
@@ -203,11 +205,11 @@ def generate_client_test_set(source_docs_path: str, output_excel_path: str, pass
             test_cases = json.load(f)
         print("Loaded test_cases from existing file")
     else:
-        test_cases = generate_test_case_prompts(source_text, pass1_path)
+        test_cases = generate_test_case_prompts(source_text, generating_model, pass1_path)
         print("Generated new test_cases from source docs")
 
     # Step 2: Run Pass 2
-    rules_data = generate_validation_rules(source_text, test_cases, pass2_path)
+    rules_data = generate_validation_rules(source_text, test_cases, generating_model, pass2_path)
 
     # Step 3: Merge rules back into test cases
     rules_map = {item["ID"]: item for item in rules_data}
@@ -250,13 +252,15 @@ def generate_client_test_set(source_docs_path: str, output_excel_path: str, pass
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
+
+    llm_wrapper = build_wrapper(provider="gemini", model="models/gemini-3.5-flash-lite", timeout=None)
     
     docs = r"..\clients\test\source_docs.txt"
-    output = r"..\clients\test\client_test_set.xlsx"
+    output = r"..\clients\test\openrouter_responses.xlsx"
     pass1 = r"..\clients\test\pass1_test_cases.json"
     pass2 = r"..\clients\test\pass2_validation_rules.json"
     
     if os.path.exists(docs):
-        generate_client_test_set(docs, output, pass1_path=pass1, pass2_path=pass2)
+        generate_client_test_set(docs, output, generating_model=llm_wrapper, pass1_path=pass1, pass2_path=pass2)
     else:
         print(f"Please place a text file at {docs} containing the client's knowledge base to test the generator.")

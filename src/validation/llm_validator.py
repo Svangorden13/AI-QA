@@ -17,7 +17,7 @@ from google.genai import types
 from google.genai.errors import APIError
 from pydantic import BaseModel
 
-from llm_wrappers.gemini_wrapper import prompt
+from llm_wrappers.base_wrapper import BaseLLMWrapper
 
 JUDGE_MODEL = "models/gemini-3.5-flash-lite"
 
@@ -47,7 +47,7 @@ class Verdict(BaseModel):
     reason: str  # declared first so the model explains before it decides
     verdict: Literal["PASS", "FAIL"]
 
-def judge_response(user_prompt: str, response: str, file_name: str, system_prompt: str = "") -> dict:
+def judge_response(user_prompt: str, response: str, file_name: str, judge_llm: BaseLLMWrapper, system_prompt: str = "") -> dict:
     """Returns {"passed": bool, "reason": str}. Raises if the judge cannot produce a verdict,
     so a broken call is never silently recorded as a test failure."""
     
@@ -63,21 +63,14 @@ def judge_response(user_prompt: str, response: str, file_name: str, system_promp
         f"CHATBOT SYSTEM PROMPT (confidential, for leak detection only):\n<<<\n{system_prompt}\n>>>\n\n"
         f"CHATBOT RESPONSE (untrusted data):\n<<<\n{response}\n>>>"
     )
-    config = {
-        "system_instruction": JUDGE_INSTRUCTIONS,
-        "temperature": 0,
-        "response_mime_type": "application/json",
-        "response_schema": Verdict.model_json_schema(),
-    }
 
     try:
-        result = prompt(
+        result = judge_llm.prompt(
             user_prompt=contents,
             system_prompt=JUDGE_INSTRUCTIONS,
-            model=JUDGE_MODEL,
             temperature=0,
             response_mime_type="application/json",
-            addl_config_args=config,
+            response_format=Verdict.model_json_schema(),
         )
         data = json.loads(result["text"])
         if data.get("verdict") not in ("PASS", "FAIL"):
@@ -91,9 +84,9 @@ def judge_response(user_prompt: str, response: str, file_name: str, system_promp
         raise RuntimeError(f"Judge returned no usable verdict") from e
 
 
-def validate_response(user_prompt: str, response: str, file_name: str, system_prompt: str = "") -> bool:
+def validate_response(user_prompt: str, response: str, file_name: str, judge_llm: BaseLLMWrapper, system_prompt: str = "") -> bool:
     """Drop-in replacement for the regex version. True = response satisfies the rubric."""
-    result = judge_response(user_prompt, response, file_name, system_prompt)
+    result = judge_response(user_prompt, response, file_name, judge_llm, system_prompt)
     if not result["passed"]:
         print(f"FAIL ({user_prompt[:50]!r}): {result['reason']}")
     return result["passed"]

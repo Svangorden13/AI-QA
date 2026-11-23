@@ -1,65 +1,89 @@
 import os
-import time
-from openai import OpenAI, APIError
+from typing import Any, Dict, Optional
+from openai import APIError, OpenAI
+from .base_wrapper import BaseLLMWrapper
 
-client = None
-init_called = False
+OPEN_ROUTER_FREE = "openrouter/free"
+META_LLAMA_3_3_70B_INSTRUCT = "meta-llama/llama-3.3-70b-instruct"
 
-OPEN_ROUTER_FREE="openrouter/free"
-META_LLAMA_3_3_70B_INSTRUCT="meta-llama/llama-3.3-70b-instruct"
 
-def init(timeout) -> None:
-    global client, init_called
+class OpenRouterWrapper(BaseLLMWrapper, provider_name="openrouter"):
+    def __init__(
+        self,
+        model: str = OPEN_ROUTER_FREE,
+        timeout: float = 60.0,
+        rate_limit_sleep: float = 15.0,
+        max_attempts: int = 11,
+    ) -> None:
+        super().__init__(
+            model=model,
+            timeout=timeout,
+            rate_limit_sleep=rate_limit_sleep,
+            max_attempts=max_attempts,
+        )
+        self.client: Optional[OpenAI] = None
 
-    if init_called == False:
+    def _init_client(self) -> None:
         api_key = os.getenv("OPENROUTER_API_KEY")
-        client = OpenAI(
+        self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
-            timeout=timeout,
+            timeout=self.timeout,
         )
-        init_called = True
 
-def prompt(user_prompt, system_prompt="", model=OPEN_ROUTER_FREE, timeout=60.0,temperature=None, response_mime_type=None, addl_config_args=None) -> str:
-    init(timeout)
-    # Try up to 3 times if the server returns a 429 or 503 error
-    for attempt in range(11):
-        try:
-            config_args = {
-                "system_instruction": system_prompt,
-            }
+    def _extract_status_code(self, exc: Exception) -> Optional[int]:
+        if isinstance(exc, APIError):
+            return exc.status_code
+        return None
 
-            if temperature is not None:
-                config_args["temperature"] = temperature
-            if response_mime_type is not None:
-                config_args["response_mime_type"] = response_mime_type
+    def _send_request(
+        self,
+        user_prompt: str,
+        system_prompt: str = "",
+        temperature: Optional[float] = None,
+        response_mime_type: Optional[str] = None,
+        response_format: Optional[str] = None,
+        addl_config_args: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        assert self.client is not None
 
-            if addl_config_args:
-                for key, value in addl_config_args.items():
-                    config_args[key] = value
+        print(f"Response format: {response_format}")
 
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role":"system", "content":system_prompt},
-                    {"role":"user", "content":user_prompt}
-                ],
-                response_format={"type":"json_object"},
-            )
-            time.sleep(15) # Wait 15 seconds to avoid rate limiting
-            return {"text":response.choices[0].message.content,
-                    "model_version":model}
-        except APIError as e:
-            if (e.status_code == 503 and attempt < 10) or (e.status_code == 429 and attempt < 2):
-                wait = 60 if e.status_code == 429 else 2 # Wait full minute for 429 errors as it may be a per-minute rate limit
-                print(f"Error {e.status_code}, waiting {wait}s then retrying...")
-                time.sleep(wait)
-                continue
-            else:
-                print(f"API Error: {e}")
-                print("All attempts failed. Please check your API key and network connection.")
-                raise e
-            break
+        if "json" in str(response_mime_type).lower():
+            print("It's a JSON request")
+            response_type = "json_schema"
+        else:
+            response_type = response_mime_type
+            print(f"It's a {response_type} request")
 
-    # If we reach here, all attempts failed
-    return ""
+        request_args: Dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }
+
+        if temperature is not None:
+            request_args["temperature"] = temperature
+        if (response_type == "json_schema") and (response_format is not None):
+            if type(response_format) == dict:
+                response_format["additionalProperties"] = False
+            request_args["response_format"] = {"type": response_type,
+                                                "json_schema": {
+                                                "name": "response_schema",
+                                                "strict": True,
+                                                "schema": response_format,
+                                                }
+                                              }
+        elif response_type is not None:
+            request_args["response_format"] = {"type": response_type}
+        if addl_config_args:
+            request_args.update(addl_config_args)
+
+        response = self.client.chat.completions.create(**request_args)
+        content = response.choices[0].message.content if response.choices else ""
+        return {
+            "text": content,
+            "model_version": self.model,
+        }

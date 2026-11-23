@@ -2,12 +2,12 @@ import os
 import time
 import logging
 import structlog
+import argparse
+from llm_wrappers.wrapper_factory import build_wrapper
 import prompt_builder
 from datetime import datetime
 from dotenv import load_dotenv
 from pathlib import Path
-from llm_wrappers.openrouter_wrapper import prompt as openrouter_prompt
-from llm_wrappers.gemini_wrapper import prompt as gemini_prompt
 from validation.llm_validator import validate_response
 from openpyxl import load_workbook
 
@@ -45,7 +45,20 @@ def main() -> None:
     init()
     logger = structlog.get_logger()
     from_file = False
-    text = input("Enter prompt or file: ")
+
+    parser = argparse.ArgumentParser(description="Run live chatbot audit and score responses.")
+    parser.add_argument("--file", default=None, help="Path to generated test set")
+    parser.add_argument("--target-provider", required=True)
+    parser.add_argument("--target-model", required=True)
+    parser.add_argument("--judge-provider", default="gemini")
+    parser.add_argument("--judge-model", default="models/gemini-3.5-flash-lite")
+    #parser.add_argument("--out", default=None, help="Output path for audit results") # Return to this with option to save results to file different from input file
+    args = parser.parse_args()
+
+    if args.file is None:
+        text = input("Enter prompt or file: ")
+    else:
+        text = args.file
 
     if text == "":
         system_prompt = prompt_builder.build_system_prompt()
@@ -73,6 +86,9 @@ def main() -> None:
     if isinstance(user_prompts, str):
         user_prompts = [user_prompts]
 
+    target_llm = build_wrapper(provider=args.target_provider, model=args.target_model)
+    judge_llm = build_wrapper(provider=args.judge_provider, model=args.judge_model)
+
     for i in range(len(user_prompts)):
         user_prompt = user_prompts[i]
         id = ids[i]
@@ -84,7 +100,7 @@ def main() -> None:
             return
 
         if use_responses_in_file == False:
-            output = gemini_prompt(user_prompt, system_prompt)
+            output = target_llm.prompt(user_prompt, system_prompt)
             response = output["text"]
             model = output["model_version"]
         else:
@@ -95,7 +111,7 @@ def main() -> None:
             
             # If from file, validate response:
             if from_file:
-                is_valid = validate_response(user_prompt, response, text, system_prompt)
+                is_valid = validate_response(user_prompt, response, text, judge_llm, system_prompt)
 
                 if update_file_with_response:
                     try:
