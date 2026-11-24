@@ -1,25 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import time
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional
+
+from .base_target import BaseTarget
 
 
-class BaseLLMWrapper(ABC):
-    _registry: Dict[str, Type["BaseLLMWrapper"]] = {}
-
-    def __init_subclass__(cls, provider_name: Optional[str] = None, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        if provider_name:
-            cls._registry[provider_name.lower()] = cls
-
-    @classmethod
-    def create(cls, provider_name: str, **kwargs: Any) -> "BaseLLMWrapper":
-        subclass = cls._registry.get(provider_name.lower())
-        if not subclass:
-            raise ValueError(
-                f"Unknown provider '{provider_name}'. Available: {list(cls._registry.keys())}"
-            )
-        return subclass(**kwargs)
-
+class BaseOSPWrapper(BaseTarget):
     def __init__(
         self,
         model: str,

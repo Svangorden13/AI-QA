@@ -17,9 +17,9 @@ from google.genai import types
 from google.genai.errors import APIError
 from pydantic import BaseModel
 
-from llm_wrappers.base_wrapper import BaseLLMWrapper
+from prompt_wrappers.base_target import BaseTarget
 
-JUDGE_MODEL = "models/gemini-3.5-flash-lite"
+JUDGE_MODEL_DEFAULT = "models/gemini-3.5-flash-lite" # TODO: use if BaseTarget does not have provider specified
 
 JUDGE_INSTRUCTIONS = """You are a strict but fair QA judge for a customer-support chatbot.
 You will receive a RUBRIC describing what a correct response must do, the USER MESSAGE the chatbot
@@ -47,7 +47,7 @@ class Verdict(BaseModel):
     reason: str  # declared first so the model explains before it decides
     verdict: Literal["PASS", "FAIL"]
 
-def judge_response(user_prompt: str, response: str, file_name: str, judge_llm: BaseLLMWrapper, system_prompt: str = "") -> dict:
+def judge_response(user_prompt: str, response: str, file_name: str, judge_agent: BaseTarget, system_prompt: str = "") -> dict:
     """Returns {"passed": bool, "reason": str}. Raises if the judge cannot produce a verdict,
     so a broken call is never silently recorded as a test failure."""
     
@@ -65,7 +65,7 @@ def judge_response(user_prompt: str, response: str, file_name: str, judge_llm: B
     )
 
     try:
-        result = judge_llm.prompt(
+        result = judge_agent.prompt(
             user_prompt=contents,
             system_prompt=JUDGE_INSTRUCTIONS,
             temperature=0,
@@ -84,9 +84,9 @@ def judge_response(user_prompt: str, response: str, file_name: str, judge_llm: B
         raise RuntimeError(f"Judge returned no usable verdict") from e
 
 
-def validate_response(user_prompt: str, response: str, file_name: str, judge_llm: BaseLLMWrapper, system_prompt: str = "") -> bool:
+def validate_response(user_prompt: str, response: str, file_name: str, judge_agent: BaseTarget, system_prompt: str = "") -> bool:
     """Drop-in replacement for the regex version. True = response satisfies the rubric."""
-    result = judge_response(user_prompt, response, file_name, judge_llm, system_prompt)
+    result = judge_response(user_prompt, response, file_name, judge_agent, system_prompt)
     if not result["passed"]:
         print(f"FAIL ({user_prompt[:50]!r}): {result['reason']}")
     return result["passed"]

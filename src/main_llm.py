@@ -3,7 +3,7 @@ import time
 import logging
 import structlog
 import argparse
-from llm_wrappers.wrapper_factory import build_wrapper
+from prompt_wrappers.wrapper_factory import build_wrapper
 import prompt_builder
 from datetime import datetime
 from dotenv import load_dotenv
@@ -86,8 +86,8 @@ def main() -> None:
     if isinstance(user_prompts, str):
         user_prompts = [user_prompts]
 
-    target_llm = build_wrapper(provider=args.target_provider, model=args.target_model)
-    judge_llm = build_wrapper(provider=args.judge_provider, model=args.judge_model)
+    target = build_wrapper(provider=args.target_provider, model=args.target_model)
+    judge = build_wrapper(provider=args.judge_provider, model=args.judge_model)
 
     for i in range(len(user_prompts)):
         user_prompt = user_prompts[i]
@@ -100,7 +100,7 @@ def main() -> None:
             return
 
         if use_responses_in_file == False:
-            output = target_llm.prompt(user_prompt, system_prompt)
+            output = target.prompt(user_prompt, system_prompt)
             response = output["text"]
             model = output["model_version"]
         else:
@@ -111,7 +111,7 @@ def main() -> None:
             
             # If from file, validate response:
             if from_file:
-                is_valid = validate_response(user_prompt, response, text, judge_llm, system_prompt)
+                is_valid = validate_response(user_prompt, response, text, judge, system_prompt)
 
                 if update_file_with_response:
                     try:

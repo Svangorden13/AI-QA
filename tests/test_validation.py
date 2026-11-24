@@ -17,7 +17,7 @@ load_dotenv()
 from validation import selftest
 from validation.response_validator import validate_response
 from validation.llm_validator import validate_response as llm_validate_response
-from llm_wrappers.wrapper_factory import build_wrapper
+from prompt_wrappers.wrapper_factory import build_wrapper
 
 OPENROUTER_PROVIDER = "openrouter"
 OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct"

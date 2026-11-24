@@ -6,7 +6,7 @@ import prompt_builder
 from datetime import datetime
 from dotenv import load_dotenv
 from pathlib import Path
-from llm_wrappers.gemini_wrapper import prompt
+from prompt_wrappers.gemini_wrapper import prompt
 from validation.response_validator import validate_response
 
 def init():

@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
-from .base_wrapper import BaseLLMWrapper
+from .base_one_shot_prompt_wrapper import BaseOSPWrapper
 
 GEMINI_MODEL_2_5 = "models/gemini-2.5-flash"
 GEMINI_MODEL_3_5 = "models/gemini-3.5-flash"
@@ -12,7 +12,7 @@ GEMINI_MODEL_3_8 = "models/gemini-3.8-flash"
 GEMMA_MODEL_4 = "models/gemma-4-31b-it"
 
 
-class GeminiWrapper(BaseLLMWrapper, provider_name="gemini"):
+class GeminiWrapper(BaseOSPWrapper, provider_name="gemini"):
     def __init__(
         self,
         model: str = GEMINI_MODEL_3_5_LITE,

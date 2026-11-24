@@ -1,13 +1,13 @@
 import os
 from typing import Any, Dict, Optional
 from openai import APIError, OpenAI
-from .base_wrapper import BaseLLMWrapper
+from .base_one_shot_prompt_wrapper import BaseOSPWrapper
 
 OPEN_ROUTER_FREE = "openrouter/free"
 META_LLAMA_3_3_70B_INSTRUCT = "meta-llama/llama-3.3-70b-instruct"
 
 
-class OpenRouterWrapper(BaseLLMWrapper, provider_name="openrouter"):
+class OpenRouterWrapper(BaseOSPWrapper, provider_name="openrouter"):
     def __init__(
         self,
         model: str = OPEN_ROUTER_FREE,
@@ -67,15 +67,16 @@ class OpenRouterWrapper(BaseLLMWrapper, provider_name="openrouter"):
         if temperature is not None:
             request_args["temperature"] = temperature
         if (response_type == "json_schema") and (response_format is not None):
-            if type(response_format) == dict:
+            if isinstance(response_format, dict):
                 response_format["additionalProperties"] = False
-            request_args["response_format"] = {"type": response_type,
-                                                "json_schema": {
-                                                "name": "response_schema",
-                                                "strict": True,
-                                                "schema": response_format,
-                                                }
-                                              }
+            request_args["response_format"] = {
+                "type": response_type,
+                "json_schema": {
+                    "name": "response_schema",
+                    "strict": True,
+                    "schema": response_format,
+                },
+            }
         elif response_type is not None:
             request_args["response_format"] = {"type": response_type}
         if addl_config_args:

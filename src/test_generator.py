@@ -3,12 +3,12 @@ import re
 import json
 import pandas as pd
 
-from llm_wrappers.base_wrapper import BaseLLMWrapper
-from llm_wrappers.wrapper_factory import build_wrapper
+from prompt_wrappers.base_one_shot_prompt_wrapper import BaseOSPWrapper
+from prompt_wrappers.wrapper_factory import build_wrapper
 
 NUM_TEST_CASES = "15-20"  # Number of test cases to generate in Pass 1
 
-def generate_test_case_prompts(source_text: str, generating_model: BaseLLMWrapper, save_file: str = None) -> list:
+def generate_test_case_prompts(source_text: str, generating_model: BaseOSPWrapper, save_file: str = None) -> list:
     """
     Pass 1: Brainstorms test scenarios, user prompts, rubrics, and risk categories.
     """
@@ -64,7 +64,7 @@ Return ONLY the raw JSON list with no markdown or extra commentary.
     return test_cases
 
 
-def generate_validation_rules(source_text: str, test_cases: list, generating_model: BaseLLMWrapper, save_file: str = None) -> list:
+def generate_validation_rules(source_text: str, test_cases: list, generating_model: BaseOSPWrapper, save_file: str = None) -> list:
     """
     Pass 2: Generates precise inclusion and exclusion validation rules for each test case.
     """
@@ -189,7 +189,7 @@ def clean_regex_flags(rule_string: str) -> str:
     # Matches a closing slash followed by flags like i, g, m (e.g., /i, /gi)
     return re.sub(r'(/)([&|]?)\s*([igm]+)\b', r'\1\2', rule_string)
 
-def generate_client_test_set(source_docs_path: str, output_excel_path: str, generating_model: BaseLLMWrapper, pass1_path: str = None, pass2_path: str = None) -> None:
+def generate_client_test_set(source_docs_path: str, output_excel_path: str, generating_model: BaseOSPWrapper, pass1_path: str = None, pass2_path: str = None) -> None:
     """
     Orchestrates the multi-pass generation process and exports to an Excel spreadsheet.
     """
